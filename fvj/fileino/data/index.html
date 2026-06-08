@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Monitoring Agroteknologi IoT</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        *{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, Helvetica, sans-serif;
+}
+
+body{
+    background:#f3f5f8;
+    padding:20px;
+}
+
+.container{
+    max-width:1200px;
+    margin:auto;
+}
+
+h1{
+    text-align:center;
+    margin-bottom:20px;
+    color:#2c3e50;
+}
+
+.card{
+    background:#fff;
+    border-radius:15px;
+    padding:25px;
+    margin-bottom:20px;
+    box-shadow:0 3px 10px rgba(0,0,0,.15);
+}
+
+.card h2{
+    text-align:center;
+    margin-bottom:20px;
+}
+
+.status-card{
+    text-align:center;
+    margin-bottom:20px;
+    font-size:18px;
+}
+
+.online{
+    color:green;
+    font-weight:bold;
+}
+
+.offline{
+    color:red;
+    font-weight:bold;
+}
+
+/* ======================
+   GAUGE
+====================== */
+
+.gauge-box{
+    width:320px;
+    margin:auto;
+    position:relative;
+}
+
+.gauge-svg{
+    width:100%;
+    display:block;
+}
+
+.gauge-value{
+
+    position:absolute;
+
+    left:50%;
+    top:78%;
+
+    transform:translate(-50%,-50%);
+
+    font-size:32px;
+    font-weight:bold;
+
+    color:#2c3e50;
+}
+
+/* ======================
+   CHART
+====================== */
+
+.chart-container{
+    width:100%;
+    height:400px;
+}
+
+#dhtChart{
+    width:100% !important;
+    height:100% !important;
+}
+
+/* ======================
+   RELAY
+====================== */
+
+.relay-group{
+    display:flex;
+    justify-content:center;
+    gap:20px;
+    flex-wrap:wrap;
+}
+
+.btn{
+
+    border:none;
+    padding:15px 25px;
+
+    color:white;
+    font-size:16px;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    transition:0.3s;
+}
+
+.btn:hover{
+    transform:translateY(-2px);
+}
+
+.btn-on{
+    background:#27ae60;
+}
+
+.btn-off{
+    background:#e74c3c;
+}
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>Monitoring Agroteknologi IoT</h1>
+
+    <!-- Status -->
+    <div class="status-card">
+        Status :
+        <span id="status" class="offline">
+            Menunggu Koneksi...
+        </span>
+    </div>
+
+    <!-- ==========================
+         KELEMBABAN TANAH
+    =========================== -->
+    <div class="card">
+
+        <h2>Kelembaban Tanah</h2>
+
+        <div class="gauge-box">
+
+            <svg
+                class="gauge-svg"
+                viewBox="0 0 200 120">
+
+                <!-- Background Gauge -->
+                <path
+                    d="M20 100 A80 80 0 0 1 180 100"
+                    stroke="#e0e0e0"
+                    stroke-width="20"
+                    fill="none"
+                />
+
+                <!-- Progress Gauge -->
+                <path
+                    id="gauge-progress"
+                    d="M20 100 A80 80 0 0 1 180 100"
+                    stroke="#3498db"
+                    stroke-width="20"
+                    fill="none"
+                    stroke-linecap="round"
+                />
+
+            </svg>
+
+            <div
+                id="soil-text"
+                class="gauge-value">
+                0%
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ==========================
+         GRAFIK DHT21
+    =========================== -->
+    <div class="card">
+
+        <h2>Monitoring DHT21</h2>
+
+        <div class="chart-container">
+
+            <canvas id="dhtChart"></canvas>
+
+        </div>
+
+    </div>
+
+    <!-- ==========================
+         KONTROL RELAY
+    =========================== -->
+    <div class="card">
+
+        <h2>Kontrol Aktuator</h2>
+
+        <div class="relay-group">
+
+            <button
+                id="btn-relay1"
+                class="btn btn-off"
+                onclick="toggleRelay(1)">
+                Pompa Air : OFF
+            </button>
+
+            
+
+            <button
+                id="btn-relay2"
+                class="btn btn-off"
+                onclick="toggleRelay(2)">
+                Solenoid : OFF
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    // ===========================
+// THINGSPEAK CONFIG
+// ===========================
+
+const channelID = "3403065";
+const readAPIKey = "V5UUGGEFV8OWCSG4";
+
+// GANTI DENGAN IP ESP32
+const espIP = "http://192.168.100.64";
+
+// ===========================
+// INISIALISASI CHART
+// ===========================
+
+const ctx =
+document.getElementById("dhtChart")
+.getContext("2d");
+
+const dhtChart = new Chart(ctx,{
+
+    type:'line',
+
+    data:{
+
+        labels:[],
+
+        datasets:[
+
+            {
+                label:'Suhu (°C)',
+                data:[],
+                borderColor:'#e74c3c',
+                backgroundColor:'#e74c3c',
+                tension:0.4,
+                fill:false
+            },
+
+            {
+                label:'Kelembaban (%)',
+                data:[],
+                borderColor:'#3498db',
+                backgroundColor:'#3498db',
+                tension:0.4,
+                fill:false
+            }
+
+        ]
+    },
+
+    options:{
+
+        responsive:true,
+        maintainAspectRatio:false,
+
+        scales:{
+            y:{
+                beginAtZero:true
+            }
+        }
+    }
+});
+
+// ===========================
+// GAUGE INIT
+// ===========================
+
+function initGauge(){
+
+    const progress =
+    document.getElementById(
+        "gauge-progress"
+    );
+
+    const length =
+    progress.getTotalLength();
+
+    progress.style.strokeDasharray =
+    length;
+
+    progress.style.strokeDashoffset =
+    length;
+}
+
+// ===========================
+// UPDATE GAUGE
+// ===========================
+
+function updateGauge(value){
+
+    value =
+    Math.max(
+        0,
+        Math.min(100,value)
+    );
+
+    const progress =
+    document.getElementById(
+        "gauge-progress"
+    );
+
+    const length =
+    progress.getTotalLength();
+
+    progress.style.strokeDasharray =
+    length;
+
+    progress.style.strokeDashoffset =
+    length - (length * value / 100);
+
+    document.getElementById(
+        "soil-text"
+    ).innerText =
+    Math.round(value) + "%";
+}
+
+// ===========================
+// AMBIL DATA THINGSPEAK
+// ===========================
+
+async function fetchThingSpeakData(){
+
+    const url =
+    `https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=10`;
+
+    try{
+
+        const response =
+        await fetch(url);
+
+        const data =
+        await response.json();
+
+        document.getElementById(
+            "status"
+        ).innerText =
+        "Terhubung ke Cloud";
+
+        document.getElementById(
+            "status"
+        ).className =
+        "online";
+
+        dhtChart.data.labels = [];
+
+        dhtChart.data.datasets[0].data = [];
+        dhtChart.data.datasets[1].data = [];
+
+        data.feeds.forEach(feed=>{
+
+            const waktu =
+            new Date(
+                feed.created_at
+            ).toLocaleTimeString();
+
+            const suhu =
+            parseFloat(
+                feed.field1
+            );
+
+            const hum =
+            parseFloat(
+                feed.field2
+            );
+
+            dhtChart.data.labels.push(
+                waktu
+            );
+
+            dhtChart.data.datasets[0]
+            .data.push(
+                isNaN(suhu) ? null : suhu
+            );
+
+            dhtChart.data.datasets[1]
+            .data.push(
+                isNaN(hum) ? null : hum
+            );
+
+        });
+
+        dhtChart.update();
+
+        const lastFeed =
+        data.feeds[
+            data.feeds.length - 1
+        ];
+
+        const soil =
+        parseFloat(
+            lastFeed.field3
+        );
+
+        updateGauge(
+            isNaN(soil) ? 0 : soil
+        );
+
+    }
+    catch(error){
+
+        console.error(error);
+
+        document.getElementById(
+            "status"
+        ).innerText =
+        "Error Cloud";
+
+        document.getElementById(
+            "status"
+        ).className =
+        "offline";
+    }
+}
+
+// ===========================
+// RELAY CONTROL
+// ===========================
+
+function toggleRelay(relayNumber){
+
+    const btn =
+    document.getElementById(
+        `btn-relay${relayNumber}`
+    );
+
+    const isOff =
+    btn.classList.contains(
+        "btn-off"
+    );
+
+    btn.className =
+    isOff ?
+    "btn btn-on" :
+    "btn btn-off";
+
+    const label =
+    relayNumber === 1
+    ? "Pompa Air"
+    : "Solenoid";
+
+    btn.innerText =
+    `${label} : ${isOff ? 'ON':'OFF'}`;
+
+    fetch(
+        `${espIP}/relay?pin=${relayNumber}&state=${isOff ? 1 : 0}`
+    )
+    .catch(()=>{
+        console.log(
+            "ESP32 tidak merespon"
+        );
+    });
+}
+
+// ===========================
+// START
+// ===========================
+
+window.onload = ()=>{
+
+    initGauge();
+
+    fetchThingSpeakData();
+
+    setInterval(
+        fetchThingSpeakData,
+        15000
+    );
+};
+</script>
+
+</body>
+</html>
