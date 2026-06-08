@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Monitoring Agroteknologi IoT</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+<body>
+
+<div class="container">
+
+    <h1>Monitoring Agroteknologi IoT</h1>
+
+    <!-- Status -->
+    <div class="status-card">
+        Status :
+        <span id="status" class="offline">
+            Menunggu Koneksi...
+        </span>
+    </div>
+
+    <!-- ==========================
+         KELEMBABAN TANAH
+    =========================== -->
+    <div class="card">
+
+        <h2>Kelembaban Tanah</h2>
+
+        <div class="gauge-box">
+
+            <svg
+                class="gauge-svg"
+                viewBox="0 0 200 120">
+
+                <!-- Background Gauge -->
+                <path
+                    d="M20 100 A80 80 0 0 1 180 100"
+                    stroke="#e0e0e0"
+                    stroke-width="20"
+                    fill="none"
+                />
+
+                <!-- Progress Gauge -->
+                <path
+                    id="gauge-progress"
+                    d="M20 100 A80 80 0 0 1 180 100"
+                    stroke="#3498db"
+                    stroke-width="20"
+                    fill="none"
+                    stroke-linecap="round"
+                />
+
+            </svg>
+
+            <div
+                id="soil-text"
+                class="gauge-value">
+                0%
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ==========================
+         GRAFIK DHT21
+    =========================== -->
+    <div class="card">
+
+        <h2>Monitoring DHT21</h2>
+
+        <div class="chart-container">
+
+            <canvas id="dhtChart"></canvas>
+
+        </div>
+
+    </div>
+
+    <!-- ==========================
+         KONTROL RELAY
+    =========================== -->
+    <div class="card">
+
+        <h2>Kontrol Aktuator</h2>
+
+        <div class="relay-group">
+
+            <button
+                id="btn-relay1"
+                class="btn btn-off"
+                onclick="toggleRelay(1)">
+                Pompa Air : OFF
+            </button>
+
+            <button
+                id="btn-relay2"
+                class="btn btn-off"
+                onclick="toggleRelay(2)">
+                Solenoid : OFF
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
